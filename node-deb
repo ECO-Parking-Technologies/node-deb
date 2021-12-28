@@ -231,6 +231,12 @@ while [ -n "$1" ]; do
       package_version="$value"
       shift
       ;;
+    -c | --deb-compression)
+      # HELPDOC: The name of the Debian binary package file (default: 'node_deb.output_deb_compression' then dpkg-deb default)
+      zero_check "$value" "$param"
+      output_deb_compression="$value"
+      shift
+      ;;
     --)
       # HELPDOC: Delimiter separating options from files and directories
       shift
@@ -398,7 +404,16 @@ if [ -z "$output_deb_name" ]; then
     output_deb_name=""
   fi
 fi
-log_debug "The deb filename name has been set to: ${output_deb_name:-dbkg-deb default}"
+log_debug "The deb filename name has been set to: ${output_deb_name:-dpkg-deb default}"
+
+# Set the output deb compression
+if [ -z "$output_deb_compression" ]; then
+  output_deb_compression="$(jq -r '.node_deb.output_deb_compression' package.json)"
+  if [[ "$output_deb_compression" == 'null' ]]; then
+    output_deb_compression=""
+  fi
+fi
+log_debug "The deb compression has been set to: ${output_deb_compression:-dpkg-deb default}"
 
 # Set the install directory
 if [ -z "$install_dir" ]; then
@@ -904,10 +919,6 @@ else
 fi
 
 log_info 'Building Debian package'
-if [[ -z "$output_deb_name" ]]; then
-  fakeroot dpkg-deb --build "$deb_dir" > '/dev/null'
-else
-  fakeroot dpkg-deb --build "$deb_dir" "$output_deb_name" > '/dev/null'
-fi
+fakeroot dpkg-deb $(if [[ -n "$output_deb_compression" ]]; then echo "-Z $output_deb_compression"; fi) --build "$deb_dir" $(if [[ -n "$output_deb_name" ]]; then echo "$output_deb_name"; fi) > '/dev/null'
 log_info 'Debian package built.'
 exit 0
